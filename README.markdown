@@ -1,8 +1,6 @@
 ## Qt Model Serialisation
 This code implements a pseudo-general method to serialised QAbstractItemModel based models to xml.
 
-Requires Qt 5.6 or later
-
 Example Usage
 
 ```C++

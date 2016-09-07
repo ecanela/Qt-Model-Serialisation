@@ -23,7 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <QDateTime>
 #include <QFile>
 #include <QSaveFile>
-#include <QVersionNumber>
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
 namespace ModelSerialisation {
@@ -50,7 +49,7 @@ namespace ModelSerialisation {
     {
         QByteArray data;
         for (int i = 0; i < val.size(); i += 2) {
-            const unsigned char unsignedData = static_cast<unsigned char>(val.midRef(i, 2).toInt(nullptr, 16));
+            const unsigned char unsignedData = static_cast<unsigned char>(val.midRef(i, 2).toInt(NULL, 16));
             data.append(*reinterpret_cast<const char*>(&unsignedData));
         }
         data = qUncompress(data);
@@ -248,12 +247,14 @@ namespace ModelSerialisation {
     {
         if (!destination->isWritable())
             return false;
-        const QVersionNumber modelSerialisationVersion(1, 0, 0); // Use this to implement versioning of the serialised values
         QXmlStreamWriter writer(destination);
         writer.writeStartDocument();
         writer.writeStartElement(QStringLiteral("ItemModel"));
-        writer.writeEmptyElement(QStringLiteral("Version"));
-        writer.writeAttribute(QStringLiteral("VersionNumber"), modelSerialisationVersion.toString());
+        writer.writeStartElement(QStringLiteral("Version")); // Use these to implement versioning of the serialised values
+        writer.writeTextElement(QStringLiteral("Major"), QString::number(1));
+        writer.writeTextElement(QStringLiteral("Minor"), QString::number(0));
+        writer.writeTextElement(QStringLiteral("Micro"), QString::number(0));
+        writer.writeEndElement(); // Version
         writeElement(writer, model, rolesToSave);
         writer.writeStartElement(QStringLiteral("HeaderData"));
         // Header data is saved only for the number of rows and columns in the root table
@@ -327,19 +328,29 @@ namespace ModelSerialisation {
             return false;
         model->removeColumns(0, model->columnCount());
         model->removeRows(0, model->rowCount());
-        QVersionNumber modelSerialisationVersion; // Use this to implement versioning of the serialised values
+        // Use these to implement versioning of the serialised values
+        int majorVersion = -1;
+        int minorVersion = -1;
+        int microVersion = -1;
         QXmlStreamReader reader(source);
         bool headerDataStarted = false;
         bool hHeaderDataStarted = false;
         bool vHeaderDataStarted = false;
+        bool versionStarted = false;
         while (!reader.atEnd() && !reader.hasError()) {
             reader.readNext();
             if (reader.isStartElement()) {
                 if (reader.name() == QStringLiteral("Version")) {
-                    const QXmlStreamAttributes versionAttributes = reader.attributes();
-                    if (!versionAttributes.hasAttribute(QStringLiteral("VersionNumber")))
-                        return false;
-                    modelSerialisationVersion = QVersionNumber::fromString(versionAttributes.value(QStringLiteral("VersionNumber")).toString());
+                    versionStarted = true;
+                }
+                else if (versionStarted && reader.name() == QStringLiteral("Major")) {
+                    majorVersion = reader.readElementText().toInt();
+                }
+                else if (versionStarted && reader.name() == QStringLiteral("Minor")) {
+                    minorVersion = reader.readElementText().toInt();
+                }
+                else if (versionStarted && reader.name() == QStringLiteral("Micro")) {
+                    microVersion = reader.readElementText().toInt();
                 }
                 else if (reader.name() == QStringLiteral("Element")) {
                     if (!readElement(reader, model)) {
@@ -381,6 +392,9 @@ namespace ModelSerialisation {
 
             }
             else if (reader.isEndElement()) {
+                if (reader.name() == QStringLiteral("Version")) {
+                    versionStarted = false;
+                }
                 if (reader.name() == QStringLiteral("HeaderData")) {
                     headerDataStarted = false;
                 }
