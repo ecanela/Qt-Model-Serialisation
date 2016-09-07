@@ -62,7 +62,10 @@ namespace ModelSerialisation {
 
     QVariant loadVariant(int type, const QString& val)
     {
+        if (val.isEmpty())
+            return QVariant();
         switch (type) {
+        case QMetaType::UnknownType: return QVariant();
         case QMetaType::Bool: return val.toInt() == 1;
         case QMetaType::Long:
         case QMetaType::Int: return val.toInt();
@@ -90,6 +93,7 @@ namespace ModelSerialisation {
         if (val.isNull())
             return QString();
         switch (val.type()) {
+        case QMetaType::UnknownType: return QString();
         case QMetaType::Bool: val.toBool() ? QStringLiteral("1") : QStringLiteral("0");
         case QMetaType::Long:
         case QMetaType::Short:
