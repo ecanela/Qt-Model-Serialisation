@@ -23,12 +23,50 @@ class QAbstractItemModel;
 class QString;
 class QIODevice;
 namespace ModelSerialisation{
+    /*!
+    \brief A list of default roles in the model
+    \details Returns a list containing all non-obsolete Qt::ItemDataRole values
+    */
     QList<int> modelDefaultRoles();
+    /*!
+    \brief Save the model to file
+    \arg \c model The model to save
+    \arg \c destination The path to the file the model is to be saved to
+    \arg \c rolesToSave The roles in the model data that should be saved
+    */
     bool saveModel(const QAbstractItemModel* const model, const QString& destination, const QList<int>& rolesToSave);
+    /*!
+    \brief Save the model to file
+    \arg \c model The model to save
+    \arg \c destination The path to the file the model is to be saved to
+    \details All non-obsolete Qt::ItemDataRole will be saved
+    */
     bool saveModel(const QAbstractItemModel* const model, const QString& destination);
-    bool loadModel(QAbstractItemModel* const model, const QString& source);
+    /*!
+    \brief Writes the model to a device
+    \arg \c model The model to save
+    \arg \c destination The device the model is to be written to
+    \arg \c rolesToSave The roles in the model data that should be saved
+    */
     bool saveModel(const QAbstractItemModel* const model, QIODevice* destination, const QList<int>& rolesToSave);
+    /*!
+    \brief Writes the model to a device
+    \arg \c model The model to save
+    \arg \c destination The device the model is to be written to
+    \details All non-obsolete Qt::ItemDataRole will be saved
+    */
     bool saveModel(const QAbstractItemModel* const model, QIODevice* destination);
+    /*!
+    \brief Reads a model from a device
+    \arg \c model The model that will be loaded
+    \arg \c source The device the model is to be read from
+    */
     bool loadModel(QAbstractItemModel* const model, QIODevice* source);
+    /*!
+    \brief Reads a model from a device
+    \arg \c model The model that will be loaded
+    \arg \c source The path to the file the model is to be loaded from
+    */
+    bool loadModel(QAbstractItemModel* const model, const QString& source);
 }
 #endif // modelserialisation_h__
