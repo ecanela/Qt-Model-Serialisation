@@ -45,9 +45,9 @@ int main(int argc, char *argv[])
     mainLay->addWidget(savedView);
     mainLay->addWidget(loadedView);
 
-    if (!ModelSerialisation::saveModel(&baseModel, "C:/Temp/TestSave.xml"))
+    if (!ModelSerialisation::saveModel(&baseModel, "TestSave.xml"))
         Q_ASSERT(false);
-    if (!ModelSerialisation::loadModel(&loadedModel, "C:/Temp/TestSave.xml"))
+    if (!ModelSerialisation::loadModel(&loadedModel, "TestSave.xml"))
         Q_ASSERT(false);
     mainWidget.show();
     return a.exec();
