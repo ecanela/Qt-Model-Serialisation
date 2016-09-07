@@ -67,13 +67,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <QXmlStreamWriter>
 namespace ModelSerialisation {
 
-    template <class T>
     QString variantToString(const QVariant& val)
     {
         QString result;
         QByteArray data;
         QDataStream outStream(&data, QIODevice::WriteOnly);
-        outStream << val.value<T>();
+        outStream << val;
+        data = qCompress(data);
         for (const char* i = data.constBegin(); i != data.constEnd(); ++i) {
             const QString tempString = QString::number(*reinterpret_cast<const unsigned char*>(i), 16);
             Q_ASSERT(tempString.size() == 2 || tempString.size() == 1);
@@ -85,7 +85,6 @@ namespace ModelSerialisation {
         return result;
     }
 
-    template <class T>
     QVariant stringToVariant(const QString& val)
     {
         QByteArray data;
@@ -93,10 +92,11 @@ namespace ModelSerialisation {
             const unsigned char unsignedData = static_cast<unsigned char>(val.midRef(i, 2).toInt(nullptr, 16));
             data.append(*reinterpret_cast<const char*>(&unsignedData));
         }
+        data = qUncompress(data);
         QDataStream inStream(data);
-        T result;
+        QVariant result;
         inStream >> result;
-        return QVariant::fromValue(result);
+        return result;
     }
 
 
@@ -117,64 +117,19 @@ namespace ModelSerialisation {
         case QMetaType::UShort: return static_cast<unsigned short>(val.toUInt());
         case QMetaType::UChar: return static_cast<unsigned char>(val.toUInt());
         case QMetaType::Float: return val.toFloat();
-        case QMetaType::QChar: return stringToVariant<QChar>(val);
         case QMetaType::QString: return val;
-        case QMetaType::QStringList: return stringToVariant<QStringList>(val);
-        case QMetaType::QByteArray: return stringToVariant<QByteArray>(val);
-        case QMetaType::QBitArray: return stringToVariant<QBitArray>(val);
         case QMetaType::QDate: return QDate::fromString(val, Qt::ISODate);
         case QMetaType::QTime: return QTime::fromString(val, Qt::ISODate);
         case QMetaType::QDateTime: return QDateTime::fromString(val, Qt::ISODate);
-        case QMetaType::QUrl: return stringToVariant<QUrl>(val);
-        case QMetaType::QLocale: return stringToVariant<QLocale>(val);
-        case QMetaType::QRect: return stringToVariant<QRect>(val);
-        case QMetaType::QRectF: return stringToVariant<QRectF>(val);
-        case QMetaType::QSize: return stringToVariant<QSize>(val);
-        case QMetaType::QSizeF: return stringToVariant<QSizeF>(val);
-        case QMetaType::QLine: return stringToVariant<QLine>(val);
-        case QMetaType::QLineF: return stringToVariant<QLineF>(val);
-        case QMetaType::QPoint: return stringToVariant<QPoint>(val);
-        case QMetaType::QPointF: return stringToVariant<QPointF>(val);
-        case QMetaType::QRegExp: return stringToVariant<QRegExp>(val);
-        case QMetaType::QEasingCurve: return stringToVariant<QEasingCurve>(val);
-        case QMetaType::QUuid: return stringToVariant<QUuid>(val);
-        case QMetaType::QRegularExpression: return stringToVariant<QRegularExpression>(val);
-        case QMetaType::QVariantMap: return stringToVariant<QVariantMap>(val);
-        case QMetaType::QVariantList: return stringToVariant<QVariantList>(val);
-        case QMetaType::QVariantHash: return stringToVariant<QVariantHash>(val);
-        case QMetaType::QByteArrayList: return stringToVariant<QByteArrayList>(val);
-        case QMetaType::QFont: return stringToVariant<QFont>(val);
-        case QMetaType::QPixmap: return stringToVariant<QPixmap>(val);
-        case QMetaType::QBrush: return stringToVariant<QBrush>(val);
-        case QMetaType::QColor: return stringToVariant<QColor>(val);
-        case QMetaType::QPalette: return stringToVariant<QPalette>(val);
-        case QMetaType::QIcon: return stringToVariant<QIcon>(val);
-        case QMetaType::QImage: return stringToVariant<QImage>(val);
-        case QMetaType::QPolygon: return stringToVariant<QPolygon>(val);
-        case QMetaType::QRegion: return stringToVariant<QRegion>(val);
-        case QMetaType::QBitmap: return stringToVariant<QBitmap>(val);
-        case QMetaType::QCursor: return stringToVariant<QCursor>(val);
-        case QMetaType::QKeySequence: return stringToVariant<QKeySequence>(val);
-        case QMetaType::QPen: return stringToVariant<QPen>(val);
-        case QMetaType::QTextLength: return stringToVariant<QTextLength>(val);
-        case QMetaType::QTextFormat: return stringToVariant<QTextFormat>(val);
-        case QMetaType::QMatrix: return stringToVariant<QMatrix>(val);
-        case QMetaType::QTransform: return stringToVariant<QTransform>(val);
-        case QMetaType::QMatrix4x4: return stringToVariant<QMatrix4x4>(val);
-        case QMetaType::QVector2D: return stringToVariant<QVector2D>(val);
-        case QMetaType::QVector3D: return stringToVariant<QVector3D>(val);
-        case QMetaType::QVector4D: return stringToVariant<QVector4D>(val);
-        case QMetaType::QQuaternion: return stringToVariant<QQuaternion>(val);
-        case QMetaType::QPolygonF: return stringToVariant<QPolygonF>(val);
-        case QMetaType::QSizePolicy: return stringToVariant<QSizePolicy>(val);
         default:
-            Q_ASSERT_X(false, "ModelSerialisation::loadVariant", "Unhandled type of variant");
-            return QVariant();
+            return stringToVariant(val);
         }
     }
     QString saveVariant(const QVariant& val)
     {
-        switch (val.userType()) {
+        if (val.isNull())
+            return QString();
+        switch (val.type()) {
         case QMetaType::Bool: val.toBool() ? QStringLiteral("1") : QStringLiteral("0");
         case QMetaType::Long:
         case QMetaType::Short:
@@ -189,61 +144,13 @@ namespace ModelSerialisation {
         case QMetaType::ULongLong:  return QString::number(val.toULongLong());
         case QMetaType::Double:  return QString::number(val.toDouble(), 'f', 15);
         case QMetaType::Float: return QString::number(val.toDouble(), 'f', 7);
-        case QMetaType::QChar: return variantToString<QChar>(val);
         case QMetaType::QString: return val.toString();
-        case QMetaType::QStringList: return variantToString<QStringList>(val);
-        case QMetaType::QByteArray: return variantToString<QByteArray>(val);
-        case QMetaType::QBitArray: return variantToString<QBitArray>(val);
         case QMetaType::QDate: return val.toDate().toString(Qt::ISODate);
         case QMetaType::QTime: return val.toTime().toString(Qt::ISODate);
         case QMetaType::QDateTime: return val.toDateTime().toString(Qt::ISODate);
-        case QMetaType::QUrl: return variantToString<QUrl>(val);
-        case QMetaType::QLocale: return variantToString<QLocale>(val);
-        case QMetaType::QRect: return variantToString<QRect>(val);
-        case QMetaType::QRectF: return variantToString<QRectF>(val);
-        case QMetaType::QSize: return variantToString<QSize>(val);
-        case QMetaType::QSizeF: return variantToString<QSizeF>(val);
-        case QMetaType::QLine: return variantToString<QLine>(val);
-        case QMetaType::QLineF: return variantToString<QLineF>(val);
-        case QMetaType::QPoint: return variantToString<QPoint>(val);
-        case QMetaType::QPointF: return variantToString<QPointF>(val);
-        case QMetaType::QRegExp: return variantToString<QRegExp>(val);
-        case QMetaType::QEasingCurve: return variantToString<QEasingCurve>(val);
-        case QMetaType::QUuid: return variantToString<QUuid>(val);
-        case QMetaType::QRegularExpression: return variantToString<QRegularExpression>(val);
-        case QMetaType::QVariantMap: return variantToString<QVariantMap>(val);
-        case QMetaType::QVariantList: return variantToString<QVariantList>(val);
-        case QMetaType::QVariantHash: return variantToString<QVariantHash>(val);
-        case QMetaType::QByteArrayList: return variantToString<QByteArrayList>(val);
-        case QMetaType::QFont: return variantToString<QFont>(val);
-        case QMetaType::QPixmap: return variantToString<QPixmap>(val);
-        case QMetaType::QBrush: return variantToString<QBrush>(val);
-        case QMetaType::QColor: return variantToString<QColor>(val);
-        case QMetaType::QPalette: return variantToString<QPalette>(val);
-        case QMetaType::QIcon: return variantToString<QIcon>(val);
-        case QMetaType::QImage: return variantToString<QImage>(val);
-        case QMetaType::QPolygon: return variantToString<QPolygon>(val);
-        case QMetaType::QRegion: return variantToString<QRegion>(val);
-        case QMetaType::QBitmap: return variantToString<QBitmap>(val);
-        case QMetaType::QCursor: return variantToString<QCursor>(val);
-        case QMetaType::QKeySequence: return variantToString<QKeySequence>(val);
-        case QMetaType::QPen: return variantToString<QPen>(val);
-        case QMetaType::QTextLength: return variantToString<QTextLength>(val);
-        case QMetaType::QTextFormat: return variantToString<QTextFormat>(val);
-        case QMetaType::QMatrix: return variantToString<QMatrix>(val);
-        case QMetaType::QTransform: return variantToString<QTransform>(val);
-        case QMetaType::QMatrix4x4: return variantToString<QMatrix4x4>(val);
-        case QMetaType::QVector2D: return variantToString<QVector2D>(val);
-        case QMetaType::QVector3D: return variantToString<QVector3D>(val);
-        case QMetaType::QVector4D: return variantToString<QVector4D>(val);
-        case QMetaType::QQuaternion: return variantToString<QQuaternion>(val);
-        case QMetaType::QPolygonF: return variantToString<QPolygonF>(val);
-        case QMetaType::QSizePolicy: return variantToString<QSizePolicy>(val);
         default:
-            Q_ASSERT_X(false, "ModelSerialisation::saveVariant", "Unhandled type of variant");
-            return QString();
+            return variantToString(val);
         }
-
     }
 
     void writeElement(QXmlStreamWriter& destination, const QAbstractItemModel* const model, const QList<int>& rolesToSave, const QModelIndex& parent = QModelIndex())
@@ -272,7 +179,7 @@ namespace ModelSerialisation {
                         continue; // Skip unhandled types
                     destination.writeStartElement(QStringLiteral("DataPoint"));
                     destination.writeAttribute(QStringLiteral("Role"), QString::number(singleRole));
-                    destination.writeAttribute(QStringLiteral("Type"), QString::number(roleData.userType()));
+                    destination.writeAttribute(QStringLiteral("Type"), QString::number(roleData.type()));
                     destination.writeCharacters(roleString);
                     destination.writeEndElement(); // DataPoint
                 }
@@ -402,7 +309,7 @@ namespace ModelSerialisation {
                 writer.writeStartElement(QStringLiteral("HeaderDataPoint"));
                 writer.writeAttribute(QStringLiteral("Section"), QString::number(i));
                 writer.writeAttribute(QStringLiteral("Role"), QString::number(singleRole));
-                writer.writeAttribute(QStringLiteral("Type"), QString::number(roleData.userType()));
+                writer.writeAttribute(QStringLiteral("Type"), QString::number(roleData.type()));
                 writer.writeCharacters(roleString);
                 writer.writeEndElement(); // HeaderDataPoint
             }
@@ -421,7 +328,7 @@ namespace ModelSerialisation {
                 writer.writeStartElement(QStringLiteral("HeaderDataPoint"));
                 writer.writeAttribute(QStringLiteral("Section"), QString::number(i));
                 writer.writeAttribute(QStringLiteral("Role"), QString::number(singleRole));
-                writer.writeAttribute(QStringLiteral("Type"), QString::number(roleData.userType()));
+                writer.writeAttribute(QStringLiteral("Type"), QString::number(roleData.type()));
                 writer.writeCharacters(roleString);
                 writer.writeEndElement(); // HeaderDataPoint
             }
