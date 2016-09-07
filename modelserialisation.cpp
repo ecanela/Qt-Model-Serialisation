@@ -1,61 +1,62 @@
+#include "modelserialisation.h"
 #include <QAbstractItemModel>
-#include <QXmlStreamReader>
-#include <QXmlStreamWriter>
-#include <QSaveFile>
-#include <QFile>
-#include <QVersionNumber>
-#include <QDataStream>
-#include <QDateTime>
 #include <QBitArray>
-#include <QUrl>
-#include <QLocale>
-#include <QRect>
-#include <QRectF>
-#include <QSize>
-#include <QSizeF>
-#include <QLine>
-#include <QLineF>
-#include <QEasingCurve>
-#include <QUuid>
-#include <QRegularExpression>
-#include <QJsonValue>
-#include <QJsonObject>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QFont>
-#include <QPixmap>
+#include <QBitmap>
 #include <QBrush>
 #include <QColor>
-#include <QPalette>
+#include <QCursor>
+#include <QDataStream>
+#include <QDateTime>
+#include <QEasingCurve>
+#include <QFile>
+#include <QFont>
 #include <QIcon>
 #include <QImage>
-#include <QPolygon>
-#include <QRegion>
-#include <QBitmap>
-#include <QCursor>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
 #include <QKeySequence>
-#include <QPen>
-#include <QTextLength>
-#include <QTextFormat>
+#include <QLine>
+#include <QLineF>
+#include <QLocale>
 #include <QMatrix>
-#include <QTransform>
 #include <QMatrix4x4>
+#include <QPalette>
+#include <QPen>
+#include <QPixmap>
+#include <QPolygon>
+#include <QPolygonF>
+#include <QQuaternion>
+#include <QRect>
+#include <QRectF>
+#include <QRegion>
+#include <QRegularExpression>
+#include <QSaveFile>
+#include <QSize>
+#include <QSizeF>
+#include <QSizePolicy>
+#include <QTextFormat>
+#include <QTextLength>
+#include <QTransform>
+#include <QUrl>
+#include <QUuid>
 #include <QVector2D>
 #include <QVector3D>
 #include <QVector4D>
-#include <QQuaternion>
-#include <QPolygonF>
-#include <QSizePolicy>
-#include "modelserialisation.h"
+#include <QVersionNumber>
+#include <QXmlStreamReader>
+#include <QXmlStreamWriter>
 namespace ModelSerialisation {
 
     template <class T>
-    QString variantToString(const QVariant& val){
+    QString variantToString(const QVariant& val)
+    {
         QString result;
         QByteArray data;
         QDataStream outStream(&data, QIODevice::WriteOnly);
         outStream << val.value<T>();
-        for (const char* i = data.constBegin(); i != data.constEnd();++i){
+        for (const char* i = data.constBegin(); i != data.constEnd(); ++i) {
             const QString tempString = QString::number(*reinterpret_cast<const unsigned char*>(i), 16);
             Q_ASSERT(tempString.size() == 2 || tempString.size() == 1);
             if (tempString.size() == 1)
@@ -81,7 +82,8 @@ namespace ModelSerialisation {
     }
 
 
-    QVariant loadVariant(int type, const QString& val){
+    QVariant loadVariant(int type, const QString& val)
+    {
         switch (type) {
         case QMetaType::Bool: return val.toInt() == 1;
         case QMetaType::Long:
@@ -152,8 +154,9 @@ namespace ModelSerialisation {
             return QVariant();
         }
     }
-    QString saveVariant(const QVariant& val){
-        switch(val.userType()){
+    QString saveVariant(const QVariant& val)
+    {
+        switch (val.userType()) {
         case QMetaType::Bool: val.toBool() ? QStringLiteral("1") : QStringLiteral("0");
         case QMetaType::Long:
         case QMetaType::Short:
@@ -166,7 +169,7 @@ namespace ModelSerialisation {
         case QMetaType::UInt: return QString::number(val.toUInt());
         case QMetaType::LongLong: return QString::number(val.toLongLong());
         case QMetaType::ULongLong:  return QString::number(val.toULongLong());
-        case QMetaType::Double:  return QString::number(val.toDouble(),'f',15);
+        case QMetaType::Double:  return QString::number(val.toDouble(), 'f', 15);
         case QMetaType::Float: return QString::number(val.toDouble(), 'f', 7);
         case QMetaType::QChar: return variantToString<QChar>(val);
         case QMetaType::QString: return val.toString();
@@ -222,7 +225,7 @@ namespace ModelSerialisation {
             Q_ASSERT_X(false, "ModelSerialisation::saveVariant", "Unhandled type of variant");
             return QString();
         }
-        
+
     }
 
     void writeElement(QXmlStreamWriter& destination, const QAbstractItemModel* const model, const QList<int>& rolesToSave, const QModelIndex& parent = QModelIndex())
@@ -241,7 +244,8 @@ namespace ModelSerialisation {
                 destination.writeStartElement(QStringLiteral("Column"));
                 destination.writeCharacters(QString::number(j));
                 destination.writeEndElement(); // Column
-                for (int singleRole : rolesToSave) {
+                foreach(int singleRole, rolesToSave)
+                {
                     const QVariant roleData = model->index(i, j, parent).data(singleRole);
                     if (roleData.isNull())
                         continue; // Skip empty roles
@@ -262,11 +266,12 @@ namespace ModelSerialisation {
         }
         destination.writeEndElement(); // Element
     }
-    bool readElement(QXmlStreamReader& source, QAbstractItemModel* const model, const QModelIndex& parent = QModelIndex()){
+    bool readElement(QXmlStreamReader& source, QAbstractItemModel* const model, const QModelIndex& parent = QModelIndex())
+    {
         if (source.name() != QStringLiteral("Element"))
             return false;
         int rowCount, colCount;
-        const auto tableSizeAttribute = source.attributes();
+        const QXmlStreamAttributes tableSizeAttribute = source.attributes();
         if (!(
             tableSizeAttribute.hasAttribute(QStringLiteral("RowCount"))
             && tableSizeAttribute.hasAttribute(QStringLiteral("ColumnCount"))
@@ -282,7 +287,7 @@ namespace ModelSerialisation {
             model->insertColumns(model->columnCount(parent), colCount - model->columnCount(parent), parent);
         int rowIndex = -1;
         int colIndex = -1;
-        bool cellStarted =false;
+        bool cellStarted = false;
         while (!source.atEnd() && !source.hasError()) {
             source.readNext();
             if (source.isStartElement()) {
@@ -298,7 +303,7 @@ namespace ModelSerialisation {
                 else if (source.name() == QStringLiteral("DataPoint") && cellStarted) {
                     if (rowIndex < 0 || colIndex < 0)
                         return false;
-                    const auto dataPointTattributes = source.attributes();
+                    const QXmlStreamAttributes dataPointTattributes = source.attributes();
                     if (!(
                         dataPointTattributes.hasAttribute(QStringLiteral("Role"))
                         && dataPointTattributes.hasAttribute(QStringLiteral("Type"))
@@ -316,49 +321,49 @@ namespace ModelSerialisation {
                     readElement(source, model, model->index(rowIndex, colIndex, parent));
                 }
             }
-            else if (source.isEndElement()){
+            else if (source.isEndElement()) {
                 if (source.name() == QStringLiteral("Cell")) {
                     cellStarted = false;
                     rowIndex = -1;
                     colIndex = -1;
                 }
                 else if (source.name() == QStringLiteral("Element")) {
-                    if(!cellStarted)
+                    if (!cellStarted)
                         return true;
                 }
             }
-            
+
         }
         return false;
     }
 
-    bool saveModel(const QAbstractItemModel* const model, const QString& destination)
+    QList<int> modelDefaultRoles()
     {
-        return saveModel(model, destination, {
-            Qt::DecorationRole
-            , Qt::EditRole
-            , Qt::ToolTipRole
-            , Qt::StatusTipRole
-            , Qt::WhatsThisRole
-            , Qt::SizeHintRole
-            , Qt::FontRole
-            , Qt::TextAlignmentRole
-            , Qt::BackgroundRole
-            , Qt::ForegroundRole
-            , Qt::CheckStateRole
-            , Qt::InitialSortOrderRole
-            , Qt::AccessibleTextRole
-            , Qt::AccessibleDescriptionRole
-            , Qt::UserRole
-        });
+        return QList<int>()
+            << Qt::DecorationRole
+            << Qt::EditRole
+            << Qt::ToolTipRole
+            << Qt::StatusTipRole
+            << Qt::WhatsThisRole
+            << Qt::SizeHintRole
+            << Qt::FontRole
+            << Qt::TextAlignmentRole
+            << Qt::BackgroundRole
+            << Qt::ForegroundRole
+            << Qt::CheckStateRole
+            << Qt::InitialSortOrderRole
+            << Qt::AccessibleTextRole
+            << Qt::AccessibleDescriptionRole
+            << Qt::UserRole
+            ;
     }
-    bool saveModel(const QAbstractItemModel* const model, const QString& destination, const QList<int>& rolesToSave)
+
+    bool saveModel(const QAbstractItemModel* const model, QIODevice* destination, const QList<int>& rolesToSave)
     {
-        const QVersionNumber modelSerialisationVersion(1, 0, 0); // Use this to implement versioning of the serialised values
-        QSaveFile destinationFile(destination);
-        if (!destinationFile.open(QIODevice::WriteOnly))
+        if (!destination->isWritable())
             return false;
-        QXmlStreamWriter writer(&destinationFile);
+        const QVersionNumber modelSerialisationVersion(1, 0, 0); // Use this to implement versioning of the serialised values
+        QXmlStreamWriter writer(destination);
         writer.writeStartDocument();
         writer.writeStartElement(QStringLiteral("ItemModel"));
         writer.writeEmptyElement(QStringLiteral("Version"));
@@ -368,7 +373,8 @@ namespace ModelSerialisation {
         // Header data is saved only for the number of rows and columns in the root table
         writer.writeStartElement(QStringLiteral("Horizontal"));
         for (int i = 0; i < model->columnCount(); ++i) {
-            for (int singleRole : rolesToSave) {
+            foreach(int singleRole, rolesToSave)
+            {
                 const QVariant roleData = model->headerData(i, Qt::Horizontal, singleRole);
                 if (roleData.isNull())
                     continue;
@@ -386,7 +392,8 @@ namespace ModelSerialisation {
         writer.writeEndElement(); // Horizontal
         writer.writeStartElement(QStringLiteral("Vertical"));
         for (int i = 0; i < model->rowCount(); ++i) {
-            for (int singleRole : rolesToSave) {
+            foreach(int singleRole, rolesToSave)
+            {
                 const QVariant roleData = model->headerData(i, Qt::Vertical, singleRole);
                 if (roleData.isNull())
                     continue;
@@ -405,17 +412,37 @@ namespace ModelSerialisation {
         writer.writeEndElement(); // HeaderData
         writer.writeEndElement(); // ItemModel
         writer.writeEndDocument();
+        return true;
+    }
+
+    bool saveModel(const QAbstractItemModel* const model, const QString& destination, const QList<int>& rolesToSave)
+    {
+        QSaveFile destinationFile(destination);
+        if (!destinationFile.open(QIODevice::WriteOnly))
+            return false;
+        if (!saveModel(model, &destinationFile, rolesToSave))
+            return false;
         return destinationFile.commit();
     }
-    
-    bool loadModel(QAbstractItemModel* const model, const QString& source){
-        QFile sourceFile(source);
-        if (!sourceFile.open(QIODevice::ReadOnly))
+
+    bool saveModel(const QAbstractItemModel* const model, const QString& destination)
+    {
+        return saveModel(model, destination, modelDefaultRoles());
+    }
+
+    bool saveModel(const QAbstractItemModel* const model, QIODevice* destination)
+    {
+        return saveModel(model, destination, modelDefaultRoles());
+    }
+
+    bool loadModel(QAbstractItemModel* const model, QIODevice* source)
+    {
+        if (!source->isReadable())
             return false;
         model->removeColumns(0, model->columnCount());
         model->removeRows(0, model->rowCount());
         QVersionNumber modelSerialisationVersion; // Use this to implement versioning of the serialised values
-        QXmlStreamReader reader(&sourceFile);
+        QXmlStreamReader reader(source);
         bool headerDataStarted = false;
         bool hHeaderDataStarted = false;
         bool vHeaderDataStarted = false;
@@ -423,13 +450,13 @@ namespace ModelSerialisation {
             reader.readNext();
             if (reader.isStartElement()) {
                 if (reader.name() == QStringLiteral("Version")) {
-                    const auto versionAttributes = reader.attributes();
+                    const QXmlStreamAttributes versionAttributes = reader.attributes();
                     if (!versionAttributes.hasAttribute(QStringLiteral("VersionNumber")))
                         return false;
                     modelSerialisationVersion = QVersionNumber::fromString(versionAttributes.value(QStringLiteral("VersionNumber")).toString());
                 }
-                else if (reader.name() == QStringLiteral("Element")){
-                    if(!readElement(reader, model)){
+                else if (reader.name() == QStringLiteral("Element")) {
+                    if (!readElement(reader, model)) {
                         model->removeColumns(0, model->columnCount());
                         model->removeRows(0, model->rowCount());
                         return false;
@@ -451,7 +478,7 @@ namespace ModelSerialisation {
                 else if (reader.name() == QStringLiteral("HeaderDataPoint") && headerDataStarted) {
                     if (!(vHeaderDataStarted || hHeaderDataStarted))
                         return false;
-                    const auto headDataAttribute = reader.attributes();
+                    const QXmlStreamAttributes headDataAttribute = reader.attributes();
                     if (!(
                         headDataAttribute.hasAttribute(QStringLiteral("Section"))
                         && headDataAttribute.hasAttribute(QStringLiteral("Role"))
@@ -467,7 +494,7 @@ namespace ModelSerialisation {
                 }
 
             }
-            else if (reader.isEndElement()){
+            else if (reader.isEndElement()) {
                 if (reader.name() == QStringLiteral("HeaderData")) {
                     headerDataStarted = false;
                 }
@@ -487,4 +514,11 @@ namespace ModelSerialisation {
         return true;
     }
 
+    bool loadModel(QAbstractItemModel* const model, const QString& source)
+    {
+        QFile sourceFile(source);
+        if (!sourceFile.open(QIODevice::ReadOnly))
+            return false;
+        return loadModel(model, &sourceFile);
+    }
 }
